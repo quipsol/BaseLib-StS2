@@ -45,7 +45,7 @@
     <Message Text="Exporting Godot .pck..." Importance="high" />
     <Exec Command="$(GodotPath) --headless --export-pack &quot;Windows Desktop&quot; $(PublishDir)\$(MSBuildProjectName).pck" ContinueOnError="WarnAndContinue" />
   </Target>
-  <Target Name="CopyToModsFolder" AfterTargets="Publish">
+  <Target Name="CopyToModsFolder" AfterTargets="Publish,GodotPrePublish">
     <Message Text="Copying .pck and .dll to mods folder." Importance="high" />
     <Copy SourceFiles="$(PublishDir)\$(MSBuildProjectName).pck" DestinationFolder="$(Sts2Path)\mods\" />
     <Copy SourceFiles="$(PublishDir)\$(MSBuildProjectName).dll" DestinationFolder="$(Sts2Path)\mods\" />
