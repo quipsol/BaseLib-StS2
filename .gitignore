@@ -6,5 +6,6 @@
 publish/
 bin/
 .editorconfig
+*.uid
 *.user
 *.import
