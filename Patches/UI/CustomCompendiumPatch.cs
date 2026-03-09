@@ -46,7 +46,9 @@ public class CustomPoolFilters
 
 
         //change misc filter
-        NCardPoolFilter miscFilter = library._miscPoolFilter;
+        NCardPoolFilter? miscFilter = AccessTools.DeclaredField(typeof(NCardLibrary), "_miscPoolFilter").GetValue(library) as NCardPoolFilter;
+        if (miscFilter == null) throw new Exception("Failed to get _miscPoolFilter");
+        
         var oldFilter = filtering[miscFilter];
         filtering[miscFilter] = (c) =>
         {
@@ -57,6 +59,7 @@ public class CustomPoolFilters
 
         Node filterParent = characterFilters[ModelDb.Character<Ironclad>()].GetParent();
 
+        FieldInfo lastHovered = AccessTools.DeclaredField(typeof(NCardLibrary), "_lastHoveredControl");
         foreach (CustomCharacterModel model in ModelDbCustomCharacters.CustomCharacters)
         {
             NCardPoolFilter filter = GenerateFilter(model);
@@ -75,7 +78,7 @@ public class CustomPoolFilters
             filter.Connect(NCardPoolFilter.SignalName.Toggled, updateFilter);
             filter.Connect(Control.SignalName.FocusEntered, Callable.From(delegate
             {
-                library._lastHoveredControl = filter;
+                lastHovered.SetValue(library, filter);
             }));
         }
     }
@@ -138,9 +141,12 @@ public class CustomPoolFilters
 
     private const float baseSize = 64f;
     [HarmonyPostfix]
-    static void AdjustFilterScales(NCardLibrary __instance)
+    static void AdjustFilterScales(NCardLibrary __instance, Dictionary<NCardPoolFilter, Func<CardModel, bool>> ____poolFilters)
     {
-        if (__instance._poolFilters.First().Key.GetParentControl() is not GridContainer parent)
+        //if (__instance._poolFilters.First().Key.GetParentControl() is not GridContainer parent)
+            //throw new Exception("Failed to find grid container for PoolFilters");
+            
+        if (____poolFilters.First().Key.GetParentControl() is not GridContainer parent)
             throw new Exception("Failed to find grid container for PoolFilters");
 
         //If too many filters, shrink them to fit properly
@@ -159,6 +165,9 @@ public class CustomPoolFilters
         }
 
         //row = 6;
+        
+        FieldInfo imageField = AccessTools.Field(typeof(NCardPoolFilter), "_image");
+        FieldInfo controllerSelectionReticleField = AccessTools.Field(typeof(NCardPoolFilter), "_controllerSelectionReticle");
 
         scale = Vector2.One * (4f / row);
         foreach (var child in parent.GetChildren())
@@ -171,23 +180,26 @@ public class CustomPoolFilters
             filter.PivotOffset *= scale;
             //MainFile.Logger.Info($"New sizes: {filter.CustomMinimumSize} | {filter.Size}");
 
-            filter._image.CustomMinimumSize *= scale;
-            filter._image.Size *= scale;
-            filter._image.PivotOffset *= scale;
-            filter._image.Position = (filter.Size - filter._image.Size) * 0.5f;
+            var image = imageField.GetValue(filter) as Control;
+            image!.CustomMinimumSize *= scale;
+            image!.Size *= scale;
+            image!.PivotOffset *= scale;
+            image!.Position = (filter.Size - image!.Size) * 0.5f;
             //MainFile.Logger.Info($"Image: {filter._image.CustomMinimumSize} | {filter._image.Size} | {filter._image.Position}");
 
-            if (filter._image.GetChildCount() > 0 && filter._image.GetChild(0) is Control shadow)
+            if (image!.GetChildCount() > 0 && image!.GetChild(0) is Control shadow)
             {
                 shadow.CustomMinimumSize *= scale;
                 shadow.Size *= scale;
                 shadow.PivotOffset *= scale;
             }
 
-            filter._controllerSelectionReticle.CustomMinimumSize *= scale;
-            filter._controllerSelectionReticle.Size *= scale;
-            filter._controllerSelectionReticle.PivotOffset *= scale;
-            filter._controllerSelectionReticle.Position *= scale;
+            var controllerSelectionReticle = controllerSelectionReticleField.GetValue(filter) as NSelectionReticle;
+
+            controllerSelectionReticle!.CustomMinimumSize *= scale;
+            controllerSelectionReticle!.Size *= scale;
+            controllerSelectionReticle!.PivotOffset *= scale;
+            controllerSelectionReticle!.Position *= scale;
         }
 
         parent.Columns = row;

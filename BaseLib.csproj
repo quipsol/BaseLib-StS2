@@ -82,7 +82,6 @@
         </Reference>
         <Reference Include="sts2">
             <HintPath>$(Sts2Path)\data_sts2_windows_x86_64\sts2.dll</HintPath>
-            <Publicize>true</Publicize>
         </Reference>
     </ItemGroup>
     

@@ -43,7 +43,7 @@ public abstract class CustomCardPoolModel : CardPoolModel, ICustomModel
     public virtual float S => ShaderColor.S;
     public virtual float V => ShaderColor.V;
 
-    public override CardModel[] GenerateAllCards() => []; //Content added through ModHelper.ConcatModelsFromMods
+    protected override CardModel[] GenerateAllCards() => []; //Content added through ModHelper.ConcatModelsFromMods
 
     public virtual bool IsShared => false;
 }

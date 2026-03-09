@@ -47,7 +47,7 @@ public abstract class CustomCharacterModel : CharacterModel, ICustomModel
     public override float AttackAnimDelay => 0.15f;
     public override float CastAnimDelay => 0.25f;
 
-    public override CharacterModel? UnlocksAfterRunAs => null;
+    protected override CharacterModel? UnlocksAfterRunAs => null;
 
 
     /// <summary>

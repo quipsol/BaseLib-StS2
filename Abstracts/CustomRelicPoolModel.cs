@@ -12,7 +12,7 @@ public abstract class CustomRelicPoolModel : RelicPoolModel, ICustomModel
         if (IsShared) ModelDbSharedRelicPoolsPatch.Register(this);
     }
 
-    public override IEnumerable<RelicModel> GenerateAllRelics() => []; //Content added through ModHelper.ConcatModelsFromMods
+    protected override IEnumerable<RelicModel> GenerateAllRelics() => []; //Content added through ModHelper.ConcatModelsFromMods
 
     /// <summary>
     /// You shouldn't need this (just use SharedRelicPool), but it is allowed.

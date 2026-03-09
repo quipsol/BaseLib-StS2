@@ -12,7 +12,7 @@ public abstract class CustomPotionPoolModel : PotionPoolModel, ICustomModel
         if (IsShared) ModelDbSharedPotionPoolsPatch.Register(this);
     }
 
-    public override IEnumerable<PotionModel> GenerateAllPotions() => []; //Content added through ModHelper.ConcatModelsFromMods
+    protected override IEnumerable<PotionModel> GenerateAllPotions() => []; //Content added through ModHelper.ConcatModelsFromMods
 
     /// <summary>
     /// You shouldn't need this (just use SharedRelicPool), but it is allowed.
