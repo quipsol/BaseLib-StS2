@@ -52,7 +52,7 @@ public partial class NConfigDropdown : NSettingsDropdown
     private void OnDropdownItemSelected(NDropdownItem nDropdownItem)
     {
         var configDropdownItem = nDropdownItem as NConfigDropdownItem;
-        if (configDropdownItem == null || configDropdownItem.DisplayIndex == _currentDisplayIndex)
+        if (configDropdownItem == null)
             return;
         
         CloseDropdown();
