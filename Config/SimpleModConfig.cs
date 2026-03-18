@@ -1,15 +1,20 @@
 ﻿using System.Reflection;
 using BaseLib.Config.UI;
+using BaseLib.Extensions;
 using Godot;
+
 // ReSharper disable MemberCanBePrivate.Global
 
 namespace BaseLib.Config;
 
 public class SimpleModConfig : ModConfig
 {
-    // Auto-generate a UI from the properties used. Should be enough for the vast majority of mods,
-    // but you can also subclass SimpleModConfig and override this to get access to the helpers below (in addition
-    // to the raw Create*Control methods from ModConfig), without an auto-generated UI.
+    /// <summary>
+    /// Auto-generate a UI from the properties used. Should be enough for the vast majority of mods,
+    /// but you can also subclass SimpleModConfig and override this to get access to helpers like
+    /// <see cref="CreateToggleOption"/> (in addition to the raw Create*Control methods from ModConfig),
+    /// without an auto-generated UI.
+    /// </summary>
     public override void SetupConfigUI(Control optionContainer)
     {
         MainFile.Logger.Info($"Setting up SimpleModConfig {GetType().FullName}");
@@ -25,31 +30,21 @@ public class SimpleModConfig : ModConfig
         GenerateOptionsForAllProperties(options);
     }
 
-    // Create a standard, layout-ready toggle
-    protected NConfigOptionRow CreateToggleOption(PropertyInfo property)
-    {
-        var control = CreateRawTickboxControl(property);
-        var label = CreateRawLabelControl(GetLabelText(property.Name), 28);
-        return new NConfigOptionRow("Toggle_" + property.Name, label, control);
-    }
+    /// <inheritdoc cref="CreateStandardOption"/>
+    protected NConfigOptionRow CreateToggleOption(PropertyInfo property, bool addHoverTip = false) =>
+        CreateStandardOption(CreateRawTickboxControl, property, addHoverTip);
 
-    // Create a standard, layout-ready slider
-    protected NConfigOptionRow CreateSliderOption(PropertyInfo property)
-    {
-        var control = CreateRawSliderControl(property);
-        var label = CreateRawLabelControl(GetLabelText(property.Name), 28);
-        return new NConfigOptionRow("Slider_" + property.Name, label, control);
-    }
+    /// <inheritdoc cref="CreateStandardOption"/>
+    protected NConfigOptionRow CreateSliderOption(PropertyInfo property, bool addHoverTip = false) =>
+        CreateStandardOption(CreateRawSliderControl, property, addHoverTip);
 
-    // Create a standard, layout-ready dropdown
-    protected NConfigOptionRow CreateDropdownOption(PropertyInfo property)
-    {
-        var control = CreateRawDropdownControl(property);
-        var label = CreateRawLabelControl(GetLabelText(property.Name), 28);
-        return new NConfigOptionRow("Dropdown_" + property.Name, label, control);
-    }
+    /// <inheritdoc cref="CreateStandardOption"/>
+    protected NConfigOptionRow CreateDropdownOption(PropertyInfo property, bool addHoverTip = false) =>
+        CreateStandardOption(CreateRawDropdownControl, property, addHoverTip);
 
-    // Create a standard, layout-ready section header
+    /// <summary>
+    /// Creates a layout-ready section header row.
+    /// </summary>
     protected MarginContainer CreateSectionHeader(string labelName, bool alignToTop = false)
     {
         MarginContainer container = new();
@@ -68,7 +63,30 @@ public class SimpleModConfig : ModConfig
         return container;
     }
 
-    // Automated generator: used by default by SimpleModConfig subclasses to create a layout with no additional UI code
+    /// <summary>
+    /// <para>Creates a standard configuration row containing a label and an option control. It has default margins
+    /// and optionally a hover tip (see <see cref="NConfigOptionRow.AddHoverTip()"/> for requirements).</para>
+    /// <para>You likely only need to call this if you create a custom control and want to use the default font/margin
+    /// settings for it.</para>
+    /// </summary>
+    /// <param name="controlCreator"/>
+    /// <param name="property">The property this option represents.</param>
+    /// <param name="addHoverTip">If true, automatically attaches a localized tooltip.</param>
+    /// <returns>A fully configured <see cref="NConfigOptionRow"/>, ready to insert with AddChild.</returns>
+    protected NConfigOptionRow CreateStandardOption(Func<PropertyInfo, Control> controlCreator, PropertyInfo property, bool addHoverTip = false)
+    {
+        var control = controlCreator.Invoke(property);
+        var label = CreateRawLabelControl(GetLabelText(property.Name), 28);
+        var modPrefix = GetType().GetPrefix();
+        var option = new NConfigOptionRow(modPrefix, property, label, control);
+        if (addHoverTip) option.AddHoverTip();
+        return option;
+    }
+
+    /// <summary>
+    /// Auto-generates a UI row from a property, including a hover tip if [ConfigHoverTip] is specified.
+    /// </summary>
+    /// <exception cref="NotSupportedException">Thrown for non-supported property types.</exception>
     protected NConfigOptionRow GenerateOptionFromProperty(PropertyInfo property)
     {
         var propertyType = property.PropertyType;
@@ -79,9 +97,26 @@ public class SimpleModConfig : ModConfig
         else if (propertyType.IsEnum) optionRow = CreateDropdownOption(property);
         else throw new NotSupportedException($"Type {propertyType.FullName} is not supported by SimpleModConfig.");
 
+        // Create a HoverTip for this option row if appropriate
+        var propertyHoverAttr = property.GetCustomAttribute<ConfigHoverTipAttribute>();
+        var classHoverAttr = GetType().GetCustomAttribute<HoverTipsByDefaultAttribute>();
+
+        var hoverTipsByDefault = classHoverAttr != null;
+        var explicitHoverAttrEnabled = propertyHoverAttr?.Enabled;
+
+        if (explicitHoverAttrEnabled ?? hoverTipsByDefault)
+        {
+            optionRow.AddHoverTip();
+        }
+
         return optionRow;
     }
 
+    /// <summary>
+    /// Auto-generate option rows for all properties in this SimpleModConfig. Runs by default, so that a subclass
+    /// only needs to add its config properties, and nothing more, to get a reasonable UI.
+    /// </summary>
+    /// <param name="targetContainer">Container where the generated options are inserted.</param>
     protected void GenerateOptionsForAllProperties(Control targetContainer)
     {
         Control? currentSetting = null;
