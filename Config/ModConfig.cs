@@ -250,7 +250,6 @@ public abstract partial class ModConfig
 
     protected string GetLabelText(string labelName)
     {
-        if (labelName.Contains(' ')) return labelName;
         var loc = LocString.GetIfExists("settings_ui", ModPrefix + StringHelper.Slugify(labelName) + ".title");
         return loc != null ? loc.GetFormattedText() : labelName;
     }
