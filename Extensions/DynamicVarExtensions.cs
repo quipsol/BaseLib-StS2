@@ -49,9 +49,9 @@ public static class DynamicVarExtensions
     /// <param name="var"></param>
     /// <param name="locTable"></param>
     /// <returns></returns>
-    public static DynamicVar WithTooltip(this DynamicVar var, string locTable = "static_hover_tips")
+    public static DynamicVar WithTooltip(this DynamicVar var, string? locKey = null, string locTable = "static_hover_tips")
     {
-        string key = var.GetType().GetPrefix() + StringHelper.Slugify(var.Name);
+        string key = locKey ?? var.GetType().GetPrefix() + StringHelper.Slugify(var.Name);
 
         DynamicVarTips[var] = () =>
         {
