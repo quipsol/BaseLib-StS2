@@ -105,6 +105,7 @@
         <None Include="Notes.txt" />
         <None Include="export_presets.cfg" />
         <None Include="BaseLib.json" />
+        <None Include="Publish/*" />
     </ItemGroup>
 
     <ItemGroup>
