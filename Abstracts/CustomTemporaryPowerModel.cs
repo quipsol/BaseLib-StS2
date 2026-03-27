@@ -26,7 +26,7 @@ public abstract class CustomTemporaryPowerModel : CustomPowerModel, ITemporaryPo
     public override PowerType Type => InternallyAppliedPower.Type;
     public override PowerStackType StackType => PowerStackType.Counter;
     public override bool AllowNegative => true;
-    public override bool IsInstanced => true;
+    public override bool IsInstanced => LastForXExtraTurns != 0;
     
     
     // The whole IgnoreNextInstance thing ONLY exists because of the Misery card
@@ -58,6 +58,21 @@ public abstract class CustomTemporaryPowerModel : CustomPowerModel, ITemporaryPo
         }
     }
 
+    
+    public override async Task AfterPowerAmountChanged(PowerModel power, decimal amount, Creature? applier, CardModel? cardSource)
+    {
+        var powerSource = this;
+        if (InternallyAppliedPower is CustomTemporaryPowerModel)
+            return;
+        if (amount == powerSource.Amount || power != powerSource)
+            return;
+        if (powerSource._shouldIgnoreNextInstance)
+            powerSource._shouldIgnoreNextInstance = false;
+        else
+            await ApplyPowerFunc(powerSource.Owner, amount, applier, cardSource, true);
+    }
+    
+    
     public override async Task AfterTurnEnd(PlayerChoiceContext choiceContext, CombatSide side)
     {
         var powerSource = this;
