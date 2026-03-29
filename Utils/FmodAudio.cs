@@ -49,15 +49,18 @@ public static class FmodAudio
             }
             catch (Exception ex)
             {
-                MainFile.Logger.Error($"Failed to get FmodServer singleton: {ex.Message}");
+                BaseLibMain.Logger.Error($"Failed to get FmodServer singleton: {ex.Message}");
             }
             return _server;
         }
     }
 
-    public static bool IsAvailable => Server != null;
-
     // ── Playing events ──────────────────────────────────────────────────
+    
+    /*
+     * In combat: Use SfxCmd.Play to play an event path,
+     * or NAudioManager.Instance.PlayOneShot.
+     */
 
     /// <summary>
     /// Fire-and-forget play of an FMOD event. Works with any event path
@@ -73,7 +76,7 @@ public static class FmodAudio
         }
         catch (Exception ex)
         {
-            MainFile.Logger.Error($"FmodAudio.PlayEvent failed for '{eventPath}': {ex.Message}");
+            BaseLibMain.Logger.Error($"FmodAudio.PlayEvent failed for '{eventPath}': {ex.Message}");
             return false;
         }
     }
@@ -94,7 +97,7 @@ public static class FmodAudio
         }
         catch (Exception ex)
         {
-            MainFile.Logger.Error($"FmodAudio.PlayEvent failed for '{eventPath}': {ex.Message}");
+            BaseLibMain.Logger.Error($"FmodAudio.PlayEvent failed for '{eventPath}': {ex.Message}");
             return false;
         }
     }
@@ -132,7 +135,7 @@ public static class FmodAudio
         }
         catch (Exception ex)
         {
-            MainFile.Logger.Error($"FmodAudio.PlayEventByGuid failed for '{guid}': {ex.Message}");
+            BaseLibMain.Logger.Error($"FmodAudio.PlayEventByGuid failed for '{guid}': {ex.Message}");
             return false;
         }
     }
@@ -152,7 +155,7 @@ public static class FmodAudio
         }
         catch (Exception ex)
         {
-            MainFile.Logger.Error($"FmodAudio.CreateEventInstance failed for '{eventPath}': {ex.Message}");
+            BaseLibMain.Logger.Error($"FmodAudio.CreateEventInstance failed for '{eventPath}': {ex.Message}");
             return null;
         }
     }
@@ -181,7 +184,7 @@ public static class FmodAudio
         }
         catch (Exception ex)
         {
-            MainFile.Logger.Error($"FmodAudio.PlayFile failed for '{absolutePath}': {ex.Message}");
+            BaseLibMain.Logger.Error($"FmodAudio.PlayFile failed for '{absolutePath}': {ex.Message}");
             return null;
         }
     }
@@ -220,7 +223,7 @@ public static class FmodAudio
         }
         catch (Exception ex)
         {
-            MainFile.Logger.Error($"FmodAudio.PreloadFile failed for '{absolutePath}': {ex.Message}");
+            BaseLibMain.Logger.Error($"FmodAudio.PreloadFile failed for '{absolutePath}': {ex.Message}");
             return false;
         }
     }
@@ -243,7 +246,7 @@ public static class FmodAudio
         }
         catch (Exception ex)
         {
-            MainFile.Logger.Error($"FmodAudio.PreloadMusic failed for '{absolutePath}': {ex.Message}");
+            BaseLibMain.Logger.Error($"FmodAudio.PreloadMusic failed for '{absolutePath}': {ex.Message}");
             return false;
         }
     }
@@ -270,7 +273,7 @@ public static class FmodAudio
         }
         catch (Exception ex)
         {
-            MainFile.Logger.Error($"FmodAudio.PlayMusic failed for '{absolutePath}': {ex.Message}");
+            BaseLibMain.Logger.Error($"FmodAudio.PlayMusic failed for '{absolutePath}': {ex.Message}");
             return null;
         }
     }
@@ -293,7 +296,7 @@ public static class FmodAudio
         }
         catch (Exception ex)
         {
-            MainFile.Logger.Error($"FmodAudio.CreateSoundInstance failed for '{absolutePath}': {ex.Message}");
+            BaseLibMain.Logger.Error($"FmodAudio.CreateSoundInstance failed for '{absolutePath}': {ex.Message}");
             return null;
         }
     }
@@ -308,7 +311,7 @@ public static class FmodAudio
         }
         catch (Exception ex)
         {
-            MainFile.Logger.Error($"FmodAudio.UnloadFile failed for '{absolutePath}': {ex.Message}");
+            BaseLibMain.Logger.Error($"FmodAudio.UnloadFile failed for '{absolutePath}': {ex.Message}");
         }
     }
 
@@ -325,12 +328,12 @@ public static class FmodAudio
         {
             var result = Server.Call("load_bank", bankPath, 0);
             _loadedBanks[bankPath] = result;
-            MainFile.Logger.Info($"Loaded FMOD bank: {bankPath}");
+            BaseLibMain.Logger.Info($"Loaded FMOD bank: {bankPath}");
             return true;
         }
         catch (Exception ex)
         {
-            MainFile.Logger.Error($"FmodAudio.LoadBank failed for '{bankPath}': {ex.Message}");
+            BaseLibMain.Logger.Error($"FmodAudio.LoadBank failed for '{bankPath}': {ex.Message}");
             return false;
         }
     }
@@ -345,7 +348,7 @@ public static class FmodAudio
         }
         catch (Exception ex)
         {
-            MainFile.Logger.Error($"FmodAudio.UnloadBank failed for '{bankPath}': {ex.Message}");
+            BaseLibMain.Logger.Error($"FmodAudio.UnloadBank failed for '{bankPath}': {ex.Message}");
         }
     }
 
@@ -430,7 +433,7 @@ public static class FmodAudio
             }
             catch (Exception ex)
             {
-                MainFile.Logger.Error($"FmodAudio replacement handler for '{path}' threw: {ex.Message}");
+                BaseLibMain.Logger.Error($"FmodAudio replacement handler for '{path}' threw: {ex.Message}");
             }
         }
         return true; // let original through
@@ -542,7 +545,7 @@ public static class FmodAudio
         }
         catch (Exception ex)
         {
-            MainFile.Logger.Error($"FmodAudio.StartSnapshot failed for '{snapshotPath}': {ex.Message}");
+            BaseLibMain.Logger.Error($"FmodAudio.StartSnapshot failed for '{snapshotPath}': {ex.Message}");
             return null;
         }
     }
@@ -561,7 +564,7 @@ public static class FmodAudio
         }
         catch (Exception ex)
         {
-            MainFile.Logger.Error($"FmodAudio.StopSnapshot failed: {ex.Message}");
+            BaseLibMain.Logger.Error($"FmodAudio.StopSnapshot failed: {ex.Message}");
         }
     }
 
@@ -581,7 +584,7 @@ public static class FmodAudio
         }
         catch (Exception ex)
         {
-            MainFile.Logger.Error($"FmodAudio.GetBus failed for '{busPath}': {ex.Message}");
+            BaseLibMain.Logger.Error($"FmodAudio.GetBus failed for '{busPath}': {ex.Message}");
             return null;
         }
     }
@@ -630,7 +633,7 @@ public static class FmodAudio
     {
         if (Server == null) return;
         try { Server.Call("set_global_parameter_by_name", name, value); }
-        catch (Exception ex) { MainFile.Logger.Error($"FmodAudio.SetGlobalParameter({name}): {ex.Message}"); }
+        catch (Exception ex) { BaseLibMain.Logger.Error($"FmodAudio.SetGlobalParameter({name}): {ex.Message}"); }
     }
 
     /// <summary>
@@ -641,7 +644,7 @@ public static class FmodAudio
     {
         if (Server == null) return;
         try { Server.Call("set_global_parameter_by_name_with_label", name, label); }
-        catch (Exception ex) { MainFile.Logger.Error($"FmodAudio.SetGlobalParameterByLabel({name}, {label}): {ex.Message}"); }
+        catch (Exception ex) { BaseLibMain.Logger.Error($"FmodAudio.SetGlobalParameterByLabel({name}, {label}): {ex.Message}"); }
     }
 
     public static float GetGlobalParameter(string name)
@@ -657,28 +660,28 @@ public static class FmodAudio
     {
         if (Server == null) return;
         try { Server.Call("mute_all_events"); }
-        catch (Exception ex) { MainFile.Logger.Error($"FmodAudio.MuteAll: {ex.Message}"); }
+        catch (Exception ex) { BaseLibMain.Logger.Error($"FmodAudio.MuteAll: {ex.Message}"); }
     }
 
     public static void UnmuteAll()
     {
         if (Server == null) return;
         try { Server.Call("unmute_all_events"); }
-        catch (Exception ex) { MainFile.Logger.Error($"FmodAudio.UnmuteAll: {ex.Message}"); }
+        catch (Exception ex) { BaseLibMain.Logger.Error($"FmodAudio.UnmuteAll: {ex.Message}"); }
     }
 
     public static void PauseAll()
     {
         if (Server == null) return;
         try { Server.Call("pause_all_events"); }
-        catch (Exception ex) { MainFile.Logger.Error($"FmodAudio.PauseAll: {ex.Message}"); }
+        catch (Exception ex) { BaseLibMain.Logger.Error($"FmodAudio.PauseAll: {ex.Message}"); }
     }
 
     public static void UnpauseAll()
     {
         if (Server == null) return;
         try { Server.Call("unpause_all_events"); }
-        catch (Exception ex) { MainFile.Logger.Error($"FmodAudio.UnpauseAll: {ex.Message}"); }
+        catch (Exception ex) { BaseLibMain.Logger.Error($"FmodAudio.UnpauseAll: {ex.Message}"); }
     }
 
     // ── DSP buffer tuning ───────────────────────────────────────────────
@@ -692,7 +695,7 @@ public static class FmodAudio
     {
         if (Server == null) return;
         try { Server.Call("set_system_dsp_buffer_size", bufferLength, numBuffers); }
-        catch (Exception ex) { MainFile.Logger.Error($"FmodAudio.SetDspBufferSize: {ex.Message}"); }
+        catch (Exception ex) { BaseLibMain.Logger.Error($"FmodAudio.SetDspBufferSize: {ex.Message}"); }
     }
 
     /// <summary>
