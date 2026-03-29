@@ -5,7 +5,7 @@ using MegaCrit.Sts2.Core.Models;
 
 namespace BaseLib.Abstracts;
 
-public abstract class CustomPotionModel : PotionModel, ICustomModel
+public abstract class CustomPotionModel : PotionModel, ICustomModel, ILocalizationProvider
 {
     public virtual bool AutoAdd => true;
     public CustomPotionModel()
@@ -15,6 +15,12 @@ public abstract class CustomPotionModel : PotionModel, ICustomModel
 
     public virtual string? PackedImagePath => null;
     public virtual string? PackedOutlinePath => null;
+    
+    /// <summary>
+    /// Override this to define localization directly in your class.
+    /// You are recommended to return a PotionLoc<seealso cref="PotionLoc"/>.
+    /// </summary>
+    public virtual List<(string, string)>? Localization => null;
     
     [HarmonyPatch(typeof(PotionModel), nameof(CustomPotionModel.PackedImagePath), MethodType.Getter)]
     private static class ImagePatch {

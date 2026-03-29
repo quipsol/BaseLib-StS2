@@ -10,7 +10,7 @@ using MegaCrit.Sts2.Core.Runs;
 
 namespace BaseLib.Abstracts;
 
-public abstract class CustomAncientModel : AncientEventModel, ICustomModel
+public abstract class CustomAncientModel : AncientEventModel, ICustomModel, ILocalizationProvider
 {
     //Suggested overrides: ButtonColor, DialogueColor
     private readonly bool _logDialogueLoad;
@@ -20,6 +20,8 @@ public abstract class CustomAncientModel : AncientEventModel, ICustomModel
         if (autoAdd) CustomContentDictionary.AddAncient(this);
         _logDialogueLoad = logDialogueLoad;
     }
+    
+    public virtual List<(string, string)>? Localization => null;
 
     /// <summary>
     /// Suggested to check act.ActNumber == 2 or 3.

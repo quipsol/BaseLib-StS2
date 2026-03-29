@@ -5,7 +5,7 @@ using MegaCrit.Sts2.Core.Random;
 
 namespace BaseLib.Abstracts;
 
-public abstract class CustomOrbModel : OrbModel, ICustomModel
+public abstract class CustomOrbModel : OrbModel, ICustomModel, ILocalizationProvider
 {
     internal static readonly List<CustomOrbModel> RegisteredOrbs = [];
 
@@ -35,6 +35,12 @@ public abstract class CustomOrbModel : OrbModel, ICustomModel
     {
         RegisteredOrbs.Add(this);
     }
+    
+    /// <summary>
+    /// Override this to define localization directly in your class.
+    /// You are recommended to return an OrbLoc<seealso cref="OrbLoc"/>.
+    /// </summary>
+    public virtual List<(string, string)>? Localization => null;
 }
 
 [HarmonyPatch(typeof(OrbModel), "IconPath", MethodType.Getter)]

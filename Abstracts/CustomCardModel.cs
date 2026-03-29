@@ -9,7 +9,7 @@ using BaseLib.Patches.Content;
 
 namespace BaseLib.Abstracts;
 
-public abstract class CustomCardModel : CardModel, ICustomModel
+public abstract class CustomCardModel : CardModel, ICustomModel, ILocalizationProvider
 {
     /// <summary>
     /// For convenience; can be manually overridden if necessary.
@@ -23,6 +23,7 @@ public abstract class CustomCardModel : CardModel, ICustomModel
 
     public virtual Texture2D? CustomFrame => null;
     public virtual string? CustomPortraitPath => null;
+    public virtual List<(string, string)>? Localization => null;
 }
 
 [HarmonyPatch(typeof(CardModel), nameof(CardModel.Frame), MethodType.Getter)]

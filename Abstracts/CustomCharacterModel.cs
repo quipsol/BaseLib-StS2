@@ -12,12 +12,18 @@ using MegaCrit.Sts2.Core.Helpers;
 
 namespace BaseLib.Abstracts;
 
-public abstract class CustomCharacterModel : CharacterModel, ICustomModel
+public abstract class CustomCharacterModel : CharacterModel, ICustomModel, ILocalizationProvider
 {
     public CustomCharacterModel()
     {
         ModelDbCustomCharacters.Register(this);
     }
+    
+    /// <summary>
+    /// Override this to define localization directly in your class.
+    /// You are recommended to return a CharacterLoc<seealso cref="CharacterLoc"/>.
+    /// </summary>
+    public virtual List<(string, string)>? Localization => null;
 
     /// <summary>
     /// Override this or place your scene at res://scenes/creature_visuals/class_name.tscn
