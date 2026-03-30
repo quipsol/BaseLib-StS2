@@ -7,6 +7,7 @@ public static class ModConfigRegistry
     public static void Register(string modId, ModConfig config)
     {
         if (!config.HasSettings()) return;
+        config.ModId = modId;
         ModConfigs[modId] = config;
     }
 
