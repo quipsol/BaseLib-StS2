@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Godot;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Entities.Cards;
@@ -9,7 +10,7 @@ using BaseLib.Patches.Content;
 
 namespace BaseLib.Abstracts;
 
-public abstract class CustomCardModel : CardModel, ICustomModel
+public abstract class CustomCardModel : CardModel, ICustomModel, ILocalizationProvider
 {
     /// <summary>
     /// For convenience; can be manually overridden if necessary.
@@ -23,6 +24,8 @@ public abstract class CustomCardModel : CardModel, ICustomModel
 
     public virtual Texture2D? CustomFrame => null;
     public virtual string? CustomPortraitPath => null;
+    public virtual Texture2D? CustomPortrait => null;
+    public virtual List<(string, string)>? Localization => null;
 }
 
 [HarmonyPatch(typeof(CardModel), nameof(CardModel.Frame), MethodType.Getter)]
@@ -47,7 +50,7 @@ class CustomCardFrame
 }
 
 [HarmonyPatch(typeof(CardModel), "PortraitPngPath", MethodType.Getter)]
-class CustomCardPortraitPath
+class CustomCardPortraitPngPath
 {
     [HarmonyPrefix]
     static bool UseAltTexture(CardModel __instance, ref string? __result)
@@ -55,6 +58,36 @@ class CustomCardPortraitPath
         if (__instance is not CustomCardModel customCard) return true;
         
         __result = customCard.CustomPortraitPath;
+        return __result == null;
+    }
+}
+
+[HarmonyPatch(typeof(CardModel), "Portrait", MethodType.Getter)]
+class CustomCardPortrait
+{
+    [HarmonyPrefix]
+    static bool UseAltTexture(CardModel __instance, ref Texture2D? __result)
+    {
+        if (__instance is not CustomCardModel customCard) return true;
+        
+        __result = customCard.CustomPortrait ?? ResourceLoader.Load<Texture2D>(customCard.CustomPortraitPath);
+        return __result == null;
+    }
+}
+
+[HarmonyPatch(typeof(CardModel), "PortraitPath", MethodType.Getter)]
+class CustomCardPortraitPath
+{
+    [HarmonyPrefix]
+    static bool UseAltTexture(CardModel __instance, ref string? __result)
+    {
+        if (__instance is not CustomCardModel customCard) return true;
+
+        if (customCard.CustomPortrait == null) {
+            __result = ResourceLoader.Load<Texture2D>(customCard.CustomPortraitPath).ResourcePath;
+        } else {
+            __result = customCard.CustomPortrait.ResourcePath;
+        }
         return __result == null;
     }
 }

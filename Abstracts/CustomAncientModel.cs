@@ -10,7 +10,7 @@ using MegaCrit.Sts2.Core.Runs;
 
 namespace BaseLib.Abstracts;
 
-public abstract class CustomAncientModel : AncientEventModel, ICustomModel
+public abstract class CustomAncientModel : AncientEventModel, ICustomModel, ILocalizationProvider
 {
     //Suggested overrides: ButtonColor, DialogueColor
     private readonly bool _logDialogueLoad;
@@ -20,6 +20,8 @@ public abstract class CustomAncientModel : AncientEventModel, ICustomModel
         if (autoAdd) CustomContentDictionary.AddAncient(this);
         _logDialogueLoad = logDialogueLoad;
     }
+    
+    public virtual List<(string, string)>? Localization => null;
 
     /// <summary>
     /// Suggested to check act.ActNumber == 2 or 3.
@@ -38,6 +40,12 @@ public abstract class CustomAncientModel : AncientEventModel, ICustomModel
     /// <returns></returns>
     public virtual bool ShouldForceSpawn(ActModel act, AncientEventModel? rngChosenAncient) => false;
     
+    /// <summary>
+    /// Set up a new OptionPools with 1, 2, or 3 pools using MakePool for each pool.
+    /// If there is 1 pool, all ancient options will be chosen randomly from this pool.
+    /// With 2 pools, the first two options will use the first pool and the last option will use the second pool.
+    /// With 3 pools, each option will use its own pool.
+    /// </summary>
     protected abstract OptionPools MakeOptionPools { get; }
 
     private OptionPools? _optionPools;
@@ -82,7 +90,7 @@ public abstract class CustomAncientModel : AncientEventModel, ICustomModel
     /******************    Assets    ******************/
 
     /// <summary>
-    /// Override to load custom event scene.
+    /// Overridden to load custom event scene.
     /// </summary>
     /// <param name="runState"></param>
     /// <returns></returns>
@@ -100,8 +108,8 @@ public abstract class CustomAncientModel : AncientEventModel, ICustomModel
     public virtual string? CustomMapIconPath => null;
     public virtual string? CustomMapIconOutlinePath => null;
 
-    public virtual Texture2D? CustomRunHistoryIcon => null;
-    public virtual Texture2D? CustomRunHistoryIconOutline => null;
+    public virtual string? CustomRunHistoryIconPath => null;
+    public virtual string? CustomRunHistoryIconOutlinePath => null;
 
 
     /****************** Localization ******************/
@@ -126,10 +134,24 @@ public abstract class CustomAncientModel : AncientEventModel, ICustomModel
         {
             FirstVisitEverDialogue = firstVisit,
             CharacterDialogues = characterDialogues,
-            AgnosticDialogues = AncientDialogueUtil.GetDialoguesForKey("ancients", "ANY", log)
+            AgnosticDialogues = AncientDialogueUtil.GetDialoguesForKey("ancients", AncientDialogueUtil.BaseLocKey(Id.Entry, "ANY"), log)
         };
-        if (log != null) MainFile.Logger.Info(log.ToString());
+        if (log != null) BaseLibMain.Logger.Info(log.ToString());
         return dialogueSet;
+    }
+}
+
+[HarmonyPatch(typeof(EventModel), "BackgroundScenePath", MethodType.Getter)]
+class BackgroundScenePath
+{
+    [HarmonyPrefix]
+    static bool Custom(AncientEventModel __instance, ref string? __result)
+    {
+        if (__instance is not CustomAncientModel custom)
+            return true;
+
+        __result = custom.CustomScenePath;
+        return __result == null;
     }
 }
 
@@ -156,33 +178,6 @@ class MapIconOutlinePath
             return true;
 
         __result = custom.CustomMapIconOutlinePath;
-        return __result == null;
-    }
-}
-
-[HarmonyPatch(typeof(AncientEventModel), "RunHistoryIcon", MethodType.Getter)]
-class RunHistoryIcon
-{
-    [HarmonyPrefix]
-    static bool Custom(AncientEventModel __instance, ref Texture2D? __result)
-    {
-        if (__instance is not CustomAncientModel custom)
-            return true;
-
-        __result = custom.CustomRunHistoryIcon;
-        return __result == null;
-    }
-}
-[HarmonyPatch(typeof(AncientEventModel), "RunHistoryIconOutline", MethodType.Getter)]
-class RunHistoryIconOutline
-{
-    [HarmonyPrefix]
-    static bool Custom(AncientEventModel __instance, ref Texture2D? __result)
-    {
-        if (__instance is not CustomAncientModel custom)
-            return true;
-
-        __result = custom.CustomRunHistoryIconOutline;
         return __result == null;
     }
 }

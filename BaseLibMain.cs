@@ -9,7 +9,7 @@ using MegaCrit.Sts2.Core.Modding;
 namespace BaseLib;
 
 [ModInitializer(nameof(Initialize))]
-public static class MainFile
+public static class BaseLibMain
 {
     public const string ModId = "BaseLib";
 
@@ -19,6 +19,15 @@ public static class MainFile
     {
         Libgcc();
 
+        try
+        {
+            NodeFactory.Init();
+        }
+        catch (Exception e)
+        {
+            Logger.Error(e.ToString());
+        }
+        
         Godot.Bridge.ScriptManagerBridge.LookupScriptsInAssembly(Assembly.GetExecutingAssembly());
         
         ModConfigRegistry.Register(ModId, new BaseLibConfig());
@@ -26,12 +35,9 @@ public static class MainFile
         Harmony harmony = new(ModId);
 
         GetCustomLocKey.Patch(harmony);
-
         TheBigPatchToCardPileCmdAdd.Patch(harmony);
 
         harmony.PatchAll();
-        
-        NodeFactory.Init();
     }
 
     //Hopefully temporary fix for linux

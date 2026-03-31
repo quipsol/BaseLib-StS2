@@ -7,17 +7,26 @@ using MegaCrit.Sts2.Core.Nodes.Combat;
 using Godot;
 using MegaCrit.Sts2.Core.Entities.Players;
 using System.Reflection;
+using BaseLib.Extensions;
+using BaseLib.Patches.Content;
 using BaseLib.Utils.NodeFactories;
 using MegaCrit.Sts2.Core.Helpers;
+using MegaCrit.Sts2.Core.Nodes.Screens.Shops;
 
 namespace BaseLib.Abstracts;
 
-public abstract class CustomCharacterModel : CharacterModel, ICustomModel
+public abstract class CustomCharacterModel : CharacterModel, ICustomModel, ILocalizationProvider, ISceneConversions
 {
     public CustomCharacterModel()
     {
         ModelDbCustomCharacters.Register(this);
     }
+    
+    /// <summary>
+    /// Override this to define localization directly in your class.
+    /// You are recommended to return a CharacterLoc<seealso cref="CharacterLoc"/>.
+    /// </summary>
+    public virtual List<(string, string)>? Localization => null;
 
     /// <summary>
     /// Override this or place your scene at res://scenes/creature_visuals/class_name.tscn
@@ -63,12 +72,6 @@ public abstract class CustomCharacterModel : CharacterModel, ICustomModel
     public virtual string? CustomCastSfx => null;
     public virtual string? CustomDeathSfx => null;
 
-    internal string? GetCustomEnergyCounterAssetPath()
-    {
-        if (CustomEnergyCounterPath != null) return CustomEnergyCounterPath;
-        return CustomEnergyCounter != null ? SceneHelper.GetScenePath("combat/energy_counters/ironclad_energy_counter") : null;
-    }
-
     //Defaults
     public override int StartingGold => 99;
     public override float AttackAnimDelay => 0.15f;
@@ -78,19 +81,19 @@ public abstract class CustomCharacterModel : CharacterModel, ICustomModel
 
 
     /// <summary>
-    /// By default, will convert a scene containing the necessary nodes into a NCreatureVisuals even if it is not one.
+    /// Override to provide a custom NCreatureVisuals scene.
+    /// If not overridden, an NCreatureVisuals will be generated from CustomVisualPath.
     /// </summary>
     /// <returns></returns>
     public virtual NCreatureVisuals? CreateCustomVisuals()
     {
-        if (CustomVisualPath == null) return null;
-        return NodeFactory<NCreatureVisuals>.CreateFromScene(CustomVisualPath);
+        return null;
     }
 
 
     /// <summary>
     /// Override and return a CreatureAnimator if you need to set up states that differ from the default for your character.
-    /// Using <seealso cref="SetupAnimationState"/> is suggested.
+    /// Using SetupAnimationState<seealso cref="SetupAnimationState"/> is suggested.
     /// </summary>
     /// <returns></returns>
     public virtual CreatureAnimator? SetupCustomAnimationStates(MegaSprite controller)
@@ -99,7 +102,7 @@ public abstract class CustomCharacterModel : CharacterModel, ICustomModel
     }
 
     /// <summary>
-    /// If you have a spine animation without all the required animations,
+    /// If you have a Spine animation without all the required animations,
     /// use this method to set up a controller that will use animations of your choice for each animation.
     /// Any omitted animation parameters will default to the idle animation.
     /// </summary>
@@ -163,22 +166,31 @@ public abstract class CustomCharacterModel : CharacterModel, ICustomModel
 
         return animator;
     }
+
+    public void RegisterSceneConversions()
+    {
+        CustomVisualPath?.RegisterSceneForConversion<NCreatureVisuals>();
+        CustomEnergyCounterPath?.RegisterSceneForConversion<NEnergyCounter>();
+        CustomMerchantAnimPath?.RegisterSceneForConversion<NMerchantCharacter>();
+    }
 }
     
 public readonly struct CustomEnergyCounter(Func<int, string> pathFunc, Color outlineColor, Color burstColor) {
-    private readonly Func<int, string> _getPath = pathFunc;
     public readonly Color OutlineColor = outlineColor;
     public readonly Color BurstColor = burstColor;
 
-    public string LayerImagePath(int layer) => _getPath(layer);
-} 
+    public string LayerImagePath(int layer) => pathFunc(layer);
+}
+
+
+/******************** Patches ********************/
 
 [HarmonyPatch(typeof(NEnergyCounter), "OutlineColor", MethodType.Getter)]
 public class EnergyCounterOutlineColorPatch {
     private static readonly FieldInfo? PlayerProp = typeof(NEnergyCounter).GetField("_player", BindingFlags.NonPublic | BindingFlags.Instance);
 
     static bool Prefix(NEnergyCounter __instance, ref Color __result) {
-        if (PlayerProp?.GetValue(__instance) is Player player && player.Character is CustomCharacterModel model && model.CustomEnergyCounter is CustomEnergyCounter counter) {
+        if (PlayerProp?.GetValue(__instance) is Player player && player.Character is CustomCharacterModel model && model.CustomEnergyCounter is { } counter) {
             __result = counter.OutlineColor;
             return false;
         }
@@ -203,20 +215,11 @@ class EnergyCounterPatch {
                 PlayerField?.SetValue(__result, player);
                 return false;
             }
-            
-            if (model.CustomEnergyCounterPath != null)
-            {
-                __result = NodeFactory<NEnergyCounter>.CreateFromScene(model.CustomEnergyCounterPath);
-                PlayerField?.SetValue(__result, player);
-                return false;
-            }
         }
         catch (Exception e)
         {
-            MainFile.Logger.Error($"Failed to create custom energy counter for {player.Character.Id}: {e}");
+            BaseLibMain.Logger.Error($"Failed to create custom energy counter for {player.Character.Id}: {e}");
         }
-
-        MainFile.Logger.Info($"Player {model.GetType().Name} does not have a custom NEnergyCounter.");
 
         return true;
     }
@@ -259,13 +262,15 @@ public class ModelDbCustomCharacters
     public static readonly List<CustomCharacterModel> CustomCharacters = [];
 
     [HarmonyPostfix]
-    public static IEnumerable<CharacterModel> AddCustomPools(IEnumerable<CharacterModel> __result)
+    static IEnumerable<CharacterModel> AddCustomCharacters(IEnumerable<CharacterModel> __result)
     {
         return [.. __result, .. CustomCharacters];
     }
 
     public static void Register(CustomCharacterModel character)
     {
+        if (!CustomContentDictionary.RegisterType(character.GetType())) return;
+        
         CustomCharacters.Add(character);
     }
 }
@@ -376,8 +381,9 @@ class EnergyCounterPath
     {
         if (__instance is not CustomCharacterModel customChar)
             return true;
-
-        __result = customChar.GetCustomEnergyCounterAssetPath();
+        
+        __result = customChar.CustomEnergyCounterPath ?? 
+                (customChar.CustomEnergyCounter != null ? SceneHelper.GetScenePath("combat/energy_counters/ironclad_energy_counter") : null);
         return __result == null;
     }
 }
@@ -396,7 +402,7 @@ class RestSiteAnimPath
     }
 }
 
-[HarmonyPatch(typeof(CharacterModel), "MerchantAnimPath", MethodType.Getter)]
+[HarmonyPatch(typeof(CharacterModel), nameof(CharacterModel.MerchantAnimPath), MethodType.Getter)]
 class MerchantAnimPath
 {
     [HarmonyPrefix]

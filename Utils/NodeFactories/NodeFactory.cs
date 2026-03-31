@@ -1,4 +1,5 @@
-﻿using Godot;
+﻿using System.Collections.Concurrent;
+using Godot;
 using MegaCrit.Sts2.Core.Assets;
 using MegaCrit.Sts2.Core.Nodes.GodotExtensions;
 
@@ -16,13 +17,14 @@ public abstract class NodeFactory<T> : NodeFactory where T : Node, new()
     protected NodeFactory(IEnumerable<INodeInfo> namedNodes) : base(namedNodes)
     {
         _instance = this;
-        MainFile.Logger.Info($"Created node factory for {typeof(T).Name}.");
+        RegisterFactory(typeof(T), this);
+        BaseLibMain.Logger.Info($"Created node factory for {typeof(T).Name}.");
     }
 
     public static T CreateFromResource(object resource)
     {
         if (_instance == null) throw new Exception($"No node factory found for type '{typeof(T).FullName}'");
-        MainFile.Logger.Info($"Creating {typeof(T).Name} from resource {resource.GetType().Name}");
+        BaseLibMain.Logger.Info($"Creating {typeof(T).Name} from resource {resource.GetType().Name}");
         var n = _instance.CreateBareFromResource(resource);
         _instance.ConvertScene(n, null);
         return n;
@@ -49,14 +51,18 @@ public abstract class NodeFactory<T> : NodeFactory where T : Node, new()
     {
         if (_instance == null) throw new Exception($"No node factory found for type '{typeof(T).FullName}'");
         
-        MainFile.Logger.Info($"Creating {typeof(T).Name} from scene {scene.ResourcePath}");
-        var n = scene.Instantiate();
+        BaseLibMain.Logger.Info($"Creating {typeof(T).Name} from scene {scene.ResourcePath}");
+        return _instance.CreateFromNode(scene.Instantiate());
+    }
+
+    protected override T CreateFromNode(Node n)
+    {
         if (n is T t) return t;
         
         //Attempt conversion.
         var node = new T();
 
-        _instance.ConvertScene(node, n);
+        ConvertScene(node, n);
         
         return node;
     }
@@ -116,7 +122,7 @@ public abstract class NodeFactory<T> : NodeFactory where T : Node, new()
         //Verify existence of/create named nodes
         List<INodeInfo> uniqueNames = [];
         Node placeholder = new();
-        foreach (var named in _namedNodes)
+        foreach (var named in NamedNodes)
         {
             if (named.UniqueName) uniqueNames.Add(named);
             else
@@ -194,20 +200,174 @@ public abstract class NodeFactory<T> : NodeFactory where T : Node, new()
 
 public abstract class NodeFactory
 {
+    // Both dictionaries are concurrent — _factories is written during Init on the main thread
+    // and read from the Instantiate postfix which can fire from any thread during asset loading.
+    private static readonly ConcurrentDictionary<Type, NodeFactory> _factories = new();
+    private static readonly ConcurrentDictionary<string, Type> _sceneTypes = new();
+
+    // Prevents recursion when the postfix triggers during a factory conversion.
+    // ThreadStatic is correct here: Godot node creation is main-thread, but this also
+    // makes us safe if background asset loading ever calls Instantiate.
+    [ThreadStatic]
+    private static HashSet<Node>? _convertingNodes;
+
     public static void Init()
     {
         new ControlFactory();
         new NCreatureVisualsFactory();
+        new NMerchantCharacterFactory();
         new NEnergyCounterFactory();
     }
-    
+
+    /// <summary>
+    /// Register a scene path to be auto-converted to the specified node type on Instantiate.
+    /// The node type must have a NodeFactory registered for it.
+    /// </summary>
+    public static void RegisterSceneType<TNode>(string scenePath) where TNode : Node
+    {
+        RegisterSceneType(scenePath, typeof(TNode));
+    }
+
+    /// <summary>
+    /// Register a scene path to be auto-converted to the specified node type on Instantiate.
+    /// Logs a warning if the path was already registered for a different type (silent overwrite).
+    /// </summary>
+    public static void RegisterSceneType(string scenePath, Type nodeType)
+    {
+        if (string.IsNullOrWhiteSpace(scenePath))
+        {
+            BaseLibMain.Logger.Warn($"Ignoring RegisterSceneType({nodeType.Name}) with null/empty path");
+            return;
+        }
+
+        if (_sceneTypes.TryGetValue(scenePath, out var existing) && existing != nodeType)
+            BaseLibMain.Logger.Warn($"Overwriting scene registration for '{scenePath}': {existing.Name} → {nodeType.Name}");
+
+        _sceneTypes[scenePath] = nodeType;
+        BaseLibMain.Logger.Info($"Registered scene '{scenePath}' for auto-conversion to {nodeType.Name}");
+    }
+
+    /// <summary>
+    /// Remove a previously registered scene path. Safe to call even if the path was never registered.
+    /// </summary>
+    public static void UnregisterSceneType(string scenePath)
+    {
+        _sceneTypes.TryRemove(scenePath, out _);
+    }
+
+    /// <summary>
+    /// Check whether a factory is registered for the given node type.
+    /// </summary>
+    public static bool HasFactory<TNode>() where TNode : Node => _factories.ContainsKey(typeof(TNode));
+
+    /// <summary>
+    /// Check whether a scene path is registered for auto-conversion.
+    /// </summary>
+    public static bool IsRegistered(string scenePath) => !string.IsNullOrEmpty(scenePath) && _sceneTypes.ContainsKey(scenePath);
+
+    internal static void RegisterFactory(Type nodeType, NodeFactory factory)
+    {
+        _factories[nodeType] = factory;
+    }
+
+    // Tracks which paths have already logged a conversion, to avoid log spam.
+    // ConcurrentDictionary for thread safety — same contract as _factories/_sceneTypes.
+    private static readonly ConcurrentDictionary<string, byte> _loggedConversions = new();
+
+    /// <summary>
+    /// Checks if the instantiated node needs auto-conversion based on registered scene types,
+    /// and performs the conversion if a matching factory exists.
+    /// Called from the PackedScene.Instantiate postfix.
+    ///
+    /// When CreateFromScene also calls Instantiate internally, the postfix handles the conversion
+    /// and CreateFromScene's "if (n is T t) return t" short-circuits — both paths produce the same result.
+    /// </summary>
+    internal static bool TryAutoConvert(PackedScene scene, ref Node? result)
+    {
+        if (result == null || (_convertingNodes != null && _convertingNodes.Contains(result))) return false;
+
+        var path = scene.ResourcePath;
+        if (string.IsNullOrEmpty(path)) return false;
+        if (!_sceneTypes.TryGetValue(path, out var expectedType)) return false; //No registered conversion
+        if (expectedType.IsInstanceOfType(result)) return false; // already the right type
+
+        if (!_factories.TryGetValue(expectedType, out var factory))
+        {
+            BaseLibMain.Logger.Warn($"Scene '{path}' registered for {expectedType.Name} but no factory exists for that type");
+            return false;
+        }
+
+        _convertingNodes ??= [];
+        var converting = result;
+        _convertingNodes.Add(converting);
+        
+        try
+        {
+            var sourceTypeName = result.GetType().Name;
+            var converted = factory.CreateFromNode(result);
+
+            // Only log the first conversion per path to avoid spam
+            if (_loggedConversions.TryAdd(path, 0))
+                BaseLibMain.Logger.Info($"Auto-converted '{path}' from {sourceTypeName} to {converted.GetType().Name}");
+
+            result = converted;
+            return true;
+        }
+        catch (Exception e)
+        {
+            // CreateAndConvert is destructive — it reparents children from the source node
+            // and may QueueFree it. If conversion fails midway, the original __result is
+            // corrupted (children stripped, possibly queued for deletion). We MUST NOT return
+            // false and let the caller use the mangled node. Re-throw so the failure is visible.
+            BaseLibMain.Logger.Error($"Auto-conversion failed for '{path}': {e}");
+            throw;
+        }
+        finally
+        {
+            _convertingNodes.Remove(converting);
+        }
+    }
+
+    /// <summary>
+    /// Create a new instance of the factory's target type and convert the source node into it.
+    /// </summary>
+    protected abstract Node CreateFromNode(Node source);
+
+    /// <summary>
+    /// Information about an element (node) contained in a scene, used to determine if conversion is possible/how to convert.
+    /// </summary>
     protected interface INodeInfo
     {
+        /// <summary>
+        /// The node's expected path from the root of the scene.
+        /// </summary>
         string Path { get; }
+        /// <summary>
+        /// Whether the node MUST be accessible through a unique name.
+        /// </summary>
         bool UniqueName { get; }
+        /// <summary>
+        /// Whether the node should be made accessible through a unique name. Can be true even if node does not require
+        /// a unique name.
+        /// </summary>
         bool MakeNameUnique { get; }
+        /// <summary>
+        /// Returns true if the node is a valid type to be used as this element of the scene.
+        /// </summary>
+        /// <param name="node"></param>
+        /// <returns></returns>
         bool IsValidType(Node node);
+        /// <summary>
+        /// Returns true if the given node is a valid type, this node requires a unique name,
+        /// and the node is named correctly.
+        /// </summary>
+        /// <param name="n"></param>
+        /// <returns></returns>
         bool IsValidUnique(Node n);
+        /// <summary>
+        /// The type that this node should have.
+        /// </summary>
+        /// <returns></returns>
         Type NodeType();
     }
     protected record NodeInfo<T>(string Path, bool MakeNameUnique = true) : INodeInfo
@@ -236,7 +396,7 @@ public abstract class NodeFactory
     /// Nodes that will be looked for in the generated type.
     /// Not all of these are necessarily required.
     /// </summary>
-    protected readonly List<INodeInfo> _namedNodes;
+    protected readonly List<INodeInfo> NamedNodes;
     
     /// <summary>
     /// If true, then will simply add entire root node of a scene as child of a new instance of target scene type.
@@ -246,11 +406,16 @@ public abstract class NodeFactory
     
     protected NodeFactory(IEnumerable<INodeInfo> namedNodes)
     {
-        _namedNodes = namedNodes.ToList();
-        FlexibleStructure = _namedNodes.All(info => info.UniqueName);
+        NamedNodes = namedNodes.ToList();
+        FlexibleStructure = NamedNodes.All(info => info.UniqueName);
     }
     
     
+    /// <summary>
+    /// Copies common positional/input properties of a control.
+    /// </summary>
+    /// <param name="target"></param>
+    /// <param name="source"></param>
     protected static void CopyControlProperties(Control target, Control source)
     {
         CopyCanvasItemProperties(target, source);
@@ -273,6 +438,11 @@ public abstract class NodeFactory
         target.ClipContents = source.ClipContents;
     }
 
+    /// <summary>
+    /// Copies common positional/input/visual properties of a CanvasItem.
+    /// </summary>
+    /// <param name="target"></param>
+    /// <param name="source"></param>
     protected static void CopyCanvasItemProperties(CanvasItem target, CanvasItem source)
     {
         target.Visible = source.Visible;
@@ -297,6 +467,11 @@ public abstract class NodeFactory
         }
     }
 
+    /// <summary>
+    /// Sets a child node and all its children to be owned by a target node for the purposes of unique name access.
+    /// </summary>
+    /// <param name="target"></param>
+    /// <param name="child"></param>
     protected static void SetChildrenOwner(Node target, Node child)
     {
         foreach (var grandchild in child.GetChildren())
