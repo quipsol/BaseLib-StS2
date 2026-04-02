@@ -22,5 +22,8 @@ public static class ModConfigRegistry
         return ModConfigs.Values.OfType<T>().FirstOrDefault();
     }
 
-    public static List<ModConfig> GetAll() => ModConfigs.Values.ToList();
+    public static List<ModConfig> GetAll() =>
+        ModConfigs.Values
+        .OrderBy(m => m.ModId)
+        .ToList();
 }
