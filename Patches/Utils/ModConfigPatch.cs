@@ -148,7 +148,7 @@ public static class InjectSettingsModConfigPatch
             if (stackField.GetValue(settingsScreen) is NMainMenuSubmenuStack stackInstance)
                 stackInstance.PushSubmenuType<NModConfigSubmenu>();
             else
-                ModConfig.ModConfigLogger.Error("Unable to open BaseLib's Mod Configuration.");
+                ModConfig.ModConfigLogger.Error("Unable to open BaseLib's Mod Configuration.", false);
         }));
 
         // TODO: dynamically figure these out as "above" and "below", to better support other mods injecting similar entries
