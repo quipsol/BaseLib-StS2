@@ -33,13 +33,16 @@ public static class ModifyHealAmountPatches
             )
             .Step(-1)
             .GetOperand(out var amountField)
+            .Insert(CodeInstruction.LoadArgument(0)) //Load arg 0 for the stfld to amountField later
             .Step(1)
             .Insert(loadCreature)
             .Insert([
+                //Stack is statemachine - amount - creature
                 CodeInstruction.Call(typeof(ModifyHealAmountPatches), nameof(ModifyHealAmountPatches.ModifyHeal)),
-                new CodeInstruction(OpCodes.Dup),
+                //Stack is statemachine - amount
+                new CodeInstruction(OpCodes.Stfld, amountField), //Store in statemachine amount field
                 CodeInstruction.LoadArgument(0),
-                new CodeInstruction(OpCodes.Stfld, amountField)
+                new CodeInstruction(OpCodes.Ldfld, amountField)
             ]);
     }
 
