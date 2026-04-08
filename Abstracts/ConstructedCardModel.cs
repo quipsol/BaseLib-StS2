@@ -183,14 +183,40 @@ public abstract class ConstructedCardModel(
         _constructedDynamicVars.Add(var.WithMultiplier(mult));
     }
 
+    /// <summary>
+    /// Adds multiple keywords to the card.
+    /// </summary>
     protected ConstructedCardModel WithKeywords(params CardKeyword[] keywords)
     {
         _cardKeywords.AddRange(keywords);
         return this;
     }
 
+    internal readonly List<CardKeyword> KeywordsRemovedOnUpgrade = [];
+
     /// <summary>
-    /// Can accept PowerModel, CardKeyword, CardModel, PotionModel
+    /// Adds a keyword to the card. If <paramref name="removeOnUpgrade"/> is true, the keyword will be removed when the card is upgraded.
+    /// </summary>
+    protected ConstructedCardModel WithKeyword(CardKeyword keyword, bool removeOnUpgrade = false)
+    {
+        _cardKeywords.Add(keyword);
+        if (removeOnUpgrade) KeywordsRemovedOnUpgrade.Add(keyword);
+        return this;
+    }
+
+    internal int? CostUpgrade = null;
+
+    /// <summary>
+    /// Adjusts the card's energy cost when upgraded. Use negative values to reduce cost, positive to increase.
+    /// </summary>
+    protected ConstructedCardModel WithCostUpgradeBy(int amount)
+    {
+        CostUpgrade = amount;
+        return this;
+    }
+
+    /// <summary>
+    /// Can accept PowerModel, CardKeyword, CardModel, PotionModel, StaticHoverTip, EnchantmentModel
     /// </summary>
     /// <param name="tipSource"></param>
     /// <returns></returns>
@@ -199,6 +225,7 @@ public abstract class ConstructedCardModel(
         _hoverTips.Add(tipSource);
         return this;
     }
+    
     protected ConstructedCardModel WithEnergyTip()
     {
         _hoverTips.Add(new(HoverTipFactory.ForEnergy));
