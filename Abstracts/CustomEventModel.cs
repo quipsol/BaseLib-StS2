@@ -10,7 +10,7 @@ namespace BaseLib.Abstracts;
 
 public abstract class CustomEventModel : EventModel, ICustomModel, ILocalizationProvider
 {
-    public CustomEventModel(bool autoAdd)
+    public CustomEventModel(bool autoAdd = true)
     {
         if (autoAdd)
             CustomContentDictionary.AddEvent(this);
