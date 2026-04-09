@@ -14,7 +14,7 @@ public abstract class CustomEnchantmentModel : EnchantmentModel, ICustomModel
     [HarmonyPatch(typeof(EnchantmentModel), nameof(IconPath), MethodType.Getter)]
     private static class IconPatch
     {
-        private static bool Prefix(EnchantmentModel __instance, ref string __result)
+        private static bool Prefix(EnchantmentModel __instance, ref string? __result)
         {
             if (__instance is not CustomEnchantmentModel customEnchantmentModel)
                 return true;
