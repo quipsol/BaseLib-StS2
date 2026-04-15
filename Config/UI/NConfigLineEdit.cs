@@ -1,12 +1,10 @@
 ﻿using System.Reflection;
 using System.Text.RegularExpressions;
 using Godot;
-using MegaCrit.Sts2.Core.Assets;
 using MegaCrit.Sts2.Core.ControllerInput;
 using MegaCrit.Sts2.Core.Helpers;
 using MegaCrit.Sts2.Core.Localization;
 using MegaCrit.Sts2.Core.Nodes.Combat;
-using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using MegaCrit.Sts2.Core.Nodes.GodotExtensions;
 
 namespace BaseLib.Config.UI;

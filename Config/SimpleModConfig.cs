@@ -4,6 +4,7 @@ using System.Reflection;
 using BaseLib.Config.UI;
 using BaseLib.Extensions;
 using Godot;
+using MegaCrit.Sts2.addons.mega_text;
 using MegaCrit.Sts2.Core.Localization;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using MegaCrit.Sts2.Core.Nodes.Multiplayer;
@@ -118,25 +119,61 @@ public class SimpleModConfig : ModConfig
     }
 
     /// <summary>
-    /// Creates a layout-ready section header row.
+    /// Creates a layout-ready, non-collapsible section header row. <seealso cref="CreateCollapsibleSection"/>
     /// </summary>
-    protected MarginContainer CreateSectionHeader(string labelName, bool alignToTop = false)
+    protected MarginContainer CreateSectionHeader(string labelName, bool alignToTop, bool centered)
     {
-        MarginContainer container = new();
-        container.Name = "Container_" + labelName.Replace(" ", "");
-        container.AddThemeConstantOverride("margin_left", 24);
-        container.AddThemeConstantOverride("margin_right", 24);
-        container.MouseFilter = Control.MouseFilterEnum.Ignore;
-        container.FocusMode = Control.FocusModeEnum.None;
+        var label = CreateRawHeaderLabel(labelName, alignToTop, centered);
 
-        var label = CreateRawLabelControl($"[center][b]{GetLabelText(labelName)}[/b][/center]", 40);
+        var container = new MarginContainer
+        {
+            Name = "Container_" + labelName.Replace(" ", ""),
+        };
+        container.AddThemeConstantOverride("margin_top", alignToTop ? 0 : 16);
+        container.AddThemeConstantOverride("margin_bottom", 16);
+
+        container.AddChild(label);
+
+        return container;
+    }
+
+    /// <summary>
+    /// See <see cref="CreateSectionHeader(string, bool, bool)"/>.
+    /// </summary>
+    protected MarginContainer CreateSectionHeader(string labelName, bool alignToTop = false) =>
+        CreateSectionHeader(labelName, alignToTop, centered: true);
+
+    /// <summary>
+    /// Creates a collapsible section (header + content container). Use section.ContentContainer.AddChild() to add your
+    /// content inside the collapsible container.
+    /// </summary>
+    /// <param name="labelName">LocString for the label text.</param>
+    /// <param name="alignToTop">If true, aligns the header text towards the top, rather than centered in the margins.</param>
+    /// <param name="collapsedByDefault">If true, the section starts out collapsed.</param>
+    protected NConfigCollapsibleSection CreateCollapsibleSection(string labelName, bool alignToTop = false, bool collapsedByDefault = false)
+    {
+        var label = CreateRawHeaderLabel(labelName, alignToTop, centered: false);
+        return NConfigCollapsibleSection.Create(labelName, label, alignToTop, collapsedByDefault);
+    }
+
+    /// <summary>
+    /// Creates the actual label used for a simple header or a collapsible header.
+    /// </summary>
+    protected MegaRichTextLabel CreateRawHeaderLabel(string labelName, bool alignToTop, bool centered)
+    {
+        var text = $"[b]{GetLabelText(labelName)}[/b]";
+        var label = CreateRawLabelControl(text, 40);
         label.Name = "SectionLabel_" + labelName.Replace(" ", "");
         label.CustomMinimumSize = new Vector2(0, 64);
 
+        label.SizeFlagsHorizontal = centered ? Control.SizeFlags.ShrinkCenter : Control.SizeFlags.ShrinkBegin;
+        label.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+
+        label.FitContent = true;
+        label.AutowrapMode = TextServer.AutowrapMode.Off;
         if (alignToTop) label.VerticalAlignment = VerticalAlignment.Top;
 
-        container.AddChild(label);
-        return container;
+        return label;
     }
 
     /// <summary>
@@ -282,6 +319,7 @@ public class SimpleModConfig : ModConfig
     {
         var sections = new SectionTracker();
         var dividers = new DividerTracker();
+        var currentContainer = targetContainer;
 
         var filteredMembers = GetFilteredMembers(GetType());
 
@@ -290,9 +328,9 @@ public class SimpleModConfig : ModConfig
             var currentRowMember = filteredMembers[i];
             var nextRowMember = i < filteredMembers.Count - 1 ? filteredMembers[i + 1] : null;
             
-            // Create a section header if this property starts a new section
+            // Create a new collapsible section if this property starts a new section
             var sectionName = currentRowMember.GetCustomAttribute<ConfigSectionAttribute>()?.Name;
-            sections.MaybeStartNew(sectionName, CreateSectionHeader, targetContainer);
+            sections.MaybeStartNew(sectionName, CreateCollapsibleSection, targetContainer, ref currentContainer);
 
             // Set up the option row itself
             NConfigOptionRow? newRow;
@@ -311,7 +349,10 @@ public class SimpleModConfig : ModConfig
                 continue;
             }
 
-            targetContainer.AddChild(newRow);
+            newRow.UniqueNameInOwner = true;
+            currentContainer.AddChild(newRow);
+            newRow.Owner = targetContainer; // Typically optionContainer
+
             dividers.CompletePending(newRow); // Insert a divider between this row and the *previous* in the section, if any
             sections.RegisterRow(newRow);
 
@@ -344,7 +385,7 @@ public class SimpleModConfig : ModConfig
             if (nextRowMember != null && nextIsSameSection)
             {
                 var divider = CreateDividerControl();
-                targetContainer.AddChild(divider);
+                currentContainer.AddChild(divider);
                 dividers.AddPending(divider, newRow);
             }
 
@@ -367,13 +408,7 @@ public class SimpleModConfig : ModConfig
     /// <param name="optionContainer">The optionContainer passed to your SetupConfigUI method</param>
     public static void SetupFocusNeighbors(Control optionContainer)
     {
-        var focusTargets = optionContainer
-            .GetChildren()
-            .OfType<Control>()
-            .Select(c => c.FindFirstFocusable())
-            .OfType<Control>() // Filter out nulls
-            .ToList();
-
+        var focusTargets = FindAllFocusables(optionContainer).ToList();
         if (focusTargets.Count == 0) return;
 
         // Connect each control to the one above/below, and wrap top->bottom and bottom->top
@@ -588,6 +623,24 @@ public class SimpleModConfig : ModConfig
         _configReloadedHandlers.Clear();
     }
 
+    private static IEnumerable<Control> FindAllFocusables(Node? node)
+    {
+        if (node == null) yield break;
+        if (node is Control { FocusMode: Control.FocusModeEnum.All } control)
+        {
+            yield return control;
+            yield break;
+        }
+
+        foreach (var child in node.GetChildren())
+        {
+            foreach (var focusable in FindAllFocusables(child))
+            {
+                yield return focusable;
+            }
+        }
+    }
+
     private sealed class DividerTracker
     {
         private readonly List<(Control Divider, Control Upper, Control Lower)> _pairs = [];
@@ -620,14 +673,17 @@ public class SimpleModConfig : ModConfig
         public Control? CurrentHeader { get; private set; }
         public string? CurrentSectionName { get; private set; }
 
-        public void MaybeStartNew(string? sectionName, Func<string, bool, Control> createHeader, Control targetContainer)
+        public void MaybeStartNew(string? sectionName, Func<string, bool, bool, NConfigCollapsibleSection> createSection, Control targetContainer, ref Control currentContainer)
         {
             if (sectionName == null || sectionName == CurrentSectionName) return;
 
+            var newSection = createSection(sectionName, false, false);
+            targetContainer.AddChild(newSection);
+            currentContainer = newSection.ContentContainer;
+
             CurrentSectionName = sectionName;
-            CurrentHeader = createHeader(sectionName, targetContainer.GetChildCount() == 0);
+            CurrentHeader = newSection;
             _headerRows[CurrentHeader] = [];
-            targetContainer.AddChild(CurrentHeader);
         }
 
         public void RegisterRow(Control row)
