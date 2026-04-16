@@ -11,6 +11,7 @@ internal class BaseLibConfig : SimpleModConfig
 
     [ConfigSection("LogSection")]
     public static bool OpenLogWindowOnStartup { get; set; } = false;
+    public static bool OpenLogWindowOnError { get; set; } = false;
 
     [SliderRange(128, 2048, 64)]
     [SliderLabelFormat("{0:0} lines")]
@@ -71,8 +72,8 @@ internal class BaseLibConfig : SimpleModConfig
     [ConfigHideInUI] public static string LogLastFilter { get; set; } = "";
     [ConfigHideInUI] public static int LogLastSizeX { get; set; } = 0;
     [ConfigHideInUI] public static int LogLastSizeY { get; set; } = 0;
-    [ConfigHideInUI] public static int LogLastPosX { get; set; } = 0;
-    [ConfigHideInUI] public static int LogLastPosY { get; set; } = 0;
+    [ConfigHideInUI] public static int LogLastPosX { get; set; } = int.MinValue;
+    [ConfigHideInUI] public static int LogLastPosY { get; set; } = int.MinValue;
 
     [ConfigHideInUI] public static string LastModConfigModId { get; set; } = "";
 }

@@ -1,6 +1,5 @@
 using BaseLib.BaseLibScenes;
 using Godot;
-using MegaCrit.Sts2.Core.Assets;
 using MegaCrit.Sts2.Core.DevConsole;
 using MegaCrit.Sts2.Core.DevConsole.ConsoleCommands;
 using MegaCrit.Sts2.Core.Entities.Players;
@@ -34,7 +33,7 @@ public class OpenLogWindow : AbstractConsoleCmd
         // Prevent flicker on open (open in the final position)
         scene.Visible = false;
         window.AddChildSafely(scene);
-        LogWindowPlacement.ApplyHostWindowDefaults(scene, window);
+        LogWindowPlacement.SetupPosition(scene, window);
         scene.Visible = true;
 
         if (!stealFocus)

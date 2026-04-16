@@ -14,6 +14,11 @@ public partial class LogListener : Godot.Logger
     public override void _LogMessage(string message, bool error)
     {
         NLogWindow.AddLog(message);
+
+        if (error)
+        {
+            NLogWindow.OpenOnErr();
+        }
     }
 
     public override void _LogError(string function, string file, int line, string code, string rationale, bool editorNotify, int errorType,
@@ -28,6 +33,8 @@ public partial class LogListener : Godot.Logger
         }
 
         NLogWindow.AddLog(msg.ToString());
+        
+        NLogWindow.OpenOnErr();
     }
 }
 
