@@ -41,9 +41,9 @@ public class OpenLogWindow : AbstractConsoleCmd
             if (!stealFocus)
                 window.GrabFocus();
         }
-        catch (Exception _)
+        catch (Exception e)
         {
-            BaseLibMain.Logger.Info("Failed to open log window: {e.ToString}");
+            BaseLibMain.Logger.Info($"Failed to open log window: {e}");
         }
     }
 }
