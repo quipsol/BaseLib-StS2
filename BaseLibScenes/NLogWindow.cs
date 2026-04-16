@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using BaseLib.Commands;
 using BaseLib.Config;
 using BaseLib.Extensions;
 using Godot;
@@ -11,6 +12,7 @@ public partial class NLogWindow : Window
 {
     private static readonly LimitedLog _log = new(256);
     private static readonly List<NLogWindow> _listeners = [];
+    private static bool _openedOnErr = false;
 
     public static void AddLog(string msg)
     {
@@ -20,6 +22,13 @@ public partial class NLogWindow : Window
         {
             window.SetDirty();
         }
+    }
+
+    public static void OpenOnErr()
+    {
+        if (_listeners.Count > 0 || _openedOnErr) return;
+        _openedOnErr = true;
+        OpenLogWindow.OpenWindow(true);
     }
 
     private ScrollContainer? _scrollContainer;
@@ -51,6 +60,7 @@ public partial class NLogWindow : Window
     {
         base._ExitTree();
         _listeners.Remove(this);
+        if (_listeners.Count == 0) _openedOnErr = false;
     }
 
     public override void _Ready()
