@@ -11,6 +11,6 @@ class ShowModelDb
     static void AdjustModdedLabel(NDebugInfoLabelManager __instance)
     {
         var text = __instance._moddedWarning.Text;
-        __instance._moddedWarning.SetTextAutoSize($"{text}\nModelDbHash: {ModelIdSerializationCache.Hash}");
+        __instance._moddedWarning.SetTextAutoSize($"{text}\nHASH [{ModelIdSerializationCache.Hash}]");
     }
 }
