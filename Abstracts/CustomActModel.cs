@@ -35,7 +35,7 @@ public abstract class CustomActModel : ActModel, ICustomModel
     public override Color MapUntraveledColor => new Color("6E7750");
     public override Color MapBgColor => new Color("9B9562");
 
-    public override string[] BgMusicOptions => ["event:/music/act3_a1_v2", "event:/music/act3_a2_v2"];
+    public override string[] BgMusicOptions => ["event:/music/act3_a1_v1", "event:/music/act3_a2_v1"];
     public override string[] MusicBankPaths => ["res://banks/desktop/act3_a1.bank", "res://banks/desktop/act3_a2.bank"];
     public override string AmbientSfx => "event:/sfx/ambience/act3_ambience";
 
